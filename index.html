@@ -174,7 +174,7 @@ body{font-family:Noto,serif;color:var(--ink);background:#2b1a14 radial-gradient(
 </div></div>
 <div class="toolbar">
  <div class="t">शुभ विवाह निमंत्रण</div>
- <div style="display:flex;gap:8px;align-items:center"><a href="#" id="lockBtn" title="लॉक करें" style="font-size:20px;text-decoration:none">🔒</a><a href="bulk.html" class="btn" style="text-decoration:none;background:#efe6d4">📦 Bulk</a><button class="btn" id="openPrint">🖨️ Print</button></div>
+ <div style="display:flex;gap:8px;align-items:center"><a href="#" id="lockBtn" title="लॉक करें" style="font-size:20px;text-decoration:none">🔒</a><a href="bulk.html" class="btn" style="text-decoration:none;background:#efe6d4">📦 Bulk</a><button class="btn" id="openPrint">🖨️ Print / ⬇ PDF</button></div>
 </div>
 
 <div class="modal hidden" id="modal">
@@ -189,9 +189,11 @@ body{font-family:Noto,serif;color:var(--ink);background:#2b1a14 radial-gradient(
   <div class="err" id="err"></div>
   <div class="btns">
    <button class="btn ghost" id="cancel">रद्द करें</button>
+   <button class="btn" id="dlPdf" style="background:#1fa855;color:#fff;box-shadow:0 2px 0 #12733a">⬇ PDF</button>
    <button class="btn" id="go">🖨️ Print</button>
   </div>
-  <p class="hint">प्रिंट विंडो में <b>“Save as PDF”</b> चुनें — PDF मेहमान के नाम से बनेगी।</p>
+  <p class="hint"><b>⬇ PDF</b> — मेहमान के नाम वाली PDF सीधे डाउनलोड होगी।<br><b>🖨️ Print</b> — प्रिंटर से छापें (या प्रिंट विंडो में “Save as PDF”)।</p>
+  <div class="hint" id="dlMsg" style="display:none;color:#7d0f1e;font-weight:700"></div>
  </div>
 </div>
 
@@ -909,6 +911,35 @@ return tl;})();
   document.title='Vivah_Nimantran_'+n.replace(/\s+/g,'_');
   setTimeout(function(){window.print();setTimeout(function(){document.title=baseTitle;fit();},500);},300);
  }
+ function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error(src+' लोड नहीं हुआ'));};document.head.appendChild(s);});}
+ var libs=null;function getLibs(){if(!libs)libs=Promise.all([window.jspdf?0:loadScript('assets/jspdf.umd.min.js'),window.NIM_PAGES?0:loadScript('assets/pages.js')]);return libs;}
+ function loadImg(src){return new Promise(function(r,j){var i=new Image();i.onload=function(){r(i);};i.onerror=j;i.src=src;});}
+ function drawFit(ctx,text,x,yB,maxW,maxPx,minPx,font,color,s,G){var px=maxPx;ctx.fillStyle=color;
+  do{ctx.font=font.replace('{px}',(px*s).toFixed(1));if(ctx.measureText(text).width<=maxW*s)break;px-=.5;}while(px>minPx);
+  ctx.textBaseline='alphabetic';ctx.fillText(text,x*s,(yB-px*G.desc)*s);}
+ function dl(){
+  var hi=document.getElementById('hi').checked;
+  var n=(hi?TL(gname.value):gname.value).trim().replace(/^(श्री|shri|shree|sri)\.?\s*/i,'');
+  if(!n){err.textContent='कृपया मेहमान का नाम लिखें';gname.focus();return;}
+  var full=/जी$/.test(n)?n:n+' जी',addr=(hi?TL(gaddr.value):gaddr.value).trim();
+  outN.textContent=full;outA.textContent=addr;
+  var m=document.getElementById('dlMsg');m.style.display='block';m.textContent='PDF बन रही है…';
+  getLibs().then(function(){return Promise.all([loadImg(NIM_PAGES[0]),document.fonts.load('40px Yatra','श्री'),document.fonts.load('700 30px Noto','गाँव')]);}).then(function(r){
+   var G=NIM_GEO,base=r[0],c=document.createElement('canvas');c.width=base.naturalWidth;c.height=base.naturalHeight;
+   var x=c.getContext('2d');x.drawImage(base,0,0);var s=c.width/G.page[0],N=G.name,A=G.addr;
+   drawFit(x,full,N[0]+G.padX,N[1]+N[3]-G.padB,N[2]-2*G.padX,G.namePx,12,'{px}px Yatra','#a3172b',s,G);
+   if(addr)drawFit(x,addr,A[0]+G.padX,A[1]+A[3]-G.padB,A[2]-2*G.padX,G.addrPx,9,'700 {px}px Noto','#3b1d0e',s,G);
+   var pdf=new jspdf.jsPDF({unit:'mm',format:[148,210],compress:true});
+   pdf.addImage(c.toDataURL('image/jpeg',.9),'JPEG',0,0,148,210);
+   pdf.addPage([148,210]);pdf.addImage(NIM_PAGES[1],'JPEG',0,0,148,210);
+   pdf.addPage([148,210]);pdf.addImage(NIM_PAGES[2],'JPEG',0,0,148,210);
+   var blob=pdf.output('blob'),u=URL.createObjectURL(blob),a=document.createElement('a');
+   a.href=u;a.download='Nimantran_'+n.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'_')+'.pdf';document.body.appendChild(a);a.click();a.remove();
+   setTimeout(function(){URL.revokeObjectURL(u);},5000);
+   m.textContent='✔ PDF डाउनलोड हो गई — श्री '+full;
+  }).catch(function(e){m.textContent='गड़बड़: '+e.message;});
+ }
+ document.getElementById('dlPdf').onclick=dl;
  document.getElementById('go').onclick=go;
  function prev(){var p=document.getElementById('hiPrev');if(!document.getElementById('hi').checked||!(TL.has(gname.value)||TL.has(gaddr.value))){p.style.display='none';return;}
   p.style.display='block';p.innerHTML='हिंदी में: <b style="color:#7d0f1e">श्री '+TL(gname.value).replace(/^श्री\s*/,'')+'</b>'+(gaddr.value.trim()?'<br>'+TL(gaddr.value):'');}
