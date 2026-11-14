@@ -135,7 +135,8 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
   <div class="who" id="mWho"></div>
   <img id="mImg" alt="कार्ड">
   <div class="acts">
-   <button class="btn b-w" id="mShare" style="grid-column:1/-1;font-size:16px;padding:13px">📤 WhatsApp पर PDF भेजें</button>
+   <button class="btn b-w" id="mPaste" style="grid-column:1/-1;font-size:16px;padding:13px">💬 बिना खोजे भेजें (कार्ड फ़ोटो)</button>
+   <button class="btn b-w" id="mShare" style="grid-column:1/-1;background:#128c4a">📤 PDF फ़ाइल भेजें (कॉन्टैक्ट खोजकर)</button>
    <a class="btn b-l" id="mWa" target="_blank" rel="noopener">💬 चैट खोलें</a>
    <button class="btn b-g" id="mDl">⬇ डाउनलोड</button>
    <button class="btn b-m" id="mDone">✔ भेज दिया</button>
@@ -1139,6 +1140,15 @@ async function build(g){
  }
  const r={files,cover};cache.set(k,r);return r;
 }
+const imgCache=new Map();
+function cardImage(g){ /* all 3 pages stacked in one PNG, for clipboard paste */
+ const k=g.id+'|'+S.ji+'|'+g.name+'|'+g.addr;if(imgCache.has(k))return imgCache.get(k);
+ const p=(async()=>{const c=await coverCanvas(g);const p2=await loadImg(PAGES[1]),p3=await loadImg(PAGES[2]);
+  const W=1000,H=Math.round(W*c.height/c.width),gap=14;const o=document.createElement('canvas');o.width=W;o.height=H*3+gap*2;
+  const x=o.getContext('2d');x.fillStyle='#5a0a14';x.fillRect(0,0,o.width,o.height);
+  x.drawImage(c,0,0,W,H);x.drawImage(p2,0,H+gap,W,H);x.drawImage(p3,0,2*(H+gap),W,H);
+  return await new Promise(r=>o.toBlob(r,'image/png'));})();
+ imgCache.set(k,p);return p;}
 function dlBlob(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 async function download(g){const r=await build(g);r.files.forEach((f,i)=>setTimeout(()=>dlBlob(f,f.name),i*400));}
 
@@ -1194,14 +1204,15 @@ async function openSend(g){
  if(n){wa.href='https://wa.me/'+n+'?text='+encodeURIComponent(msgFor(g));wa.classList.remove('dis');}else{wa.removeAttribute('href');wa.classList.add('dis');}
  const canShare=!!(navigator.canShare&&navigator.share);
  $('mShare').style.display=canShare?'':'none';
- $('mShare').textContent=S.fmt==='pdf'?'📤 WhatsApp पर PDF भेजें':'📤 WhatsApp पर कार्ड (फ़ोटो) भेजें';
+ $('mShare').textContent=S.fmt==='pdf'?'📤 PDF फ़ाइल भेजें (कॉन्टैक्ट खोजकर)':'📤 कार्ड फ़ोटो भेजें (कॉन्टैक्ट खोजकर)';
  $('mWa').textContent=canShare?'💬 सिर्फ़ चैट खोलें':'💬 WhatsApp चैट + PDF';
- if(!canShare){$('mWa').className='btn b-w';$('mWa').style.gridColumn='1/-1';}
- $('mTip').innerHTML=canShare
-  ?'<b>📤 WhatsApp पर PDF भेजें</b> दबाएँ → <b>WhatsApp</b> चुनें → <b>'+esc('श्री '+fullName(g))+'</b>'+(g.phone?' ('+esc(g.phone)+')':'')+' को खोजकर चुनें → भेजें। PDF फ़ाइल और संदेश दोनों साथ जाएँगे। (संदेश कॉपी भी हो जाता है — न दिखे तो कैप्शन में पेस्ट करें)<br>भेजने के बाद यहाँ <b>✔ भेज दिया</b> दबाएँ, अगला मेहमान खुल जाएगा।'
-  :'यह ब्राउज़र सीधे फ़ाइल शेयर नहीं करता (कंप्यूटर)। <b>💬 WhatsApp चैट + PDF</b> दबाएँ → PDF डाउनलोड होगी और WhatsApp Web में मेहमान की चैट संदेश के साथ खुलेगी → डाउनलोड हुई PDF को चैट में <b>खींचकर छोड़ें</b> (या 📎 से जोड़ें) → भेजें।<br>मोबाइल पर यह पेज खोलें तो PDF सीधे WhatsApp पर जाती है।';
+ $('mPaste').classList.toggle('dis',!n);
+ $('mTip').innerHTML='<b>💬 बिना खोजे भेजें:</b> दबाते ही कार्ड की फ़ोटो कॉपी होगी और <b>'+esc('श्री '+fullName(g))+'</b> की WhatsApp चैट संदेश के साथ सीधे खुलेगी →'
+  +(isMobile?' मैसेज बॉक्स में <b>उँगली दबाकर रखें → Paste</b> (या कीबोर्ड के ऊपर दिख रही फ़ोटो पर टैप करें) → कार्ड फ़ोटो लग जाएगी → <b>भेजें</b>। फिर संदेश भी भेजें।':' चैट में <b>Ctrl + V</b> दबाएँ → कार्ड फ़ोटो लग जाएगी → <b>भेजें</b>।')
+  +(canShare?'<br><b>📤 PDF फ़ाइल चाहिए</b> तो दूसरा बटन — इसमें WhatsApp में मेहमान को खोजकर चुनना पड़ता है (WhatsApp बिना API के फ़ाइल सीधे किसी चैट में नहीं लगाने देता)।':'<br>PDF भेजनी हो तो <b>💬 WhatsApp चैट + PDF</b> — PDF डाउनलोड होगी, उसे चैट में खींचकर छोड़ें।')
+  +'<br>भेजने के बाद <b>✔ भेज दिया</b> दबाएँ, अगला मेहमान खुल जाएगा।';
  $('sendM').classList.remove('hidden');
- try{const r=await build(g);if(cur===g)$('mImg').src=r.cover;}catch(err){toast('कार्ड नहीं बन सका: '+err.message);}
+ try{const r=await build(g);if(cur===g)$('mImg').src=r.cover;if(canCopyImg())cardImage(g);}catch(err){toast('कार्ड नहीं बन सका: '+err.message);}
 }
 $('mClose').onclick=()=>{$('sendM').classList.add('hidden');cur=null;};
 $('mDl').onclick=async()=>{if(cur){await download(cur);toast('डाउनलोड शुरू ✔');}};
@@ -1217,6 +1228,17 @@ $('mShare').onclick=async()=>{
  }catch(err){if(err.name==='NotAllowedError')toast('फिर से 📤 दबाएँ');else if(err.name!=='AbortError')toast('शेयर नहीं हो सका: '+err.message);}
 };
 function markSent(g,next){g.sent=true;save();render();if(next)sendNext(g);}
+function canCopyImg(){return !!(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem);}
+$('mPaste').onclick=async()=>{
+ if(!cur)return;const g=cur;const n=waNum(g.phone);
+ if(!n){toast('इस मेहमान का मोबाइल नंबर नहीं है — ✏️ बदलें से जोड़ें');return;}
+ const url='https://wa.me/'+n+'?text='+encodeURIComponent(msgFor(g));
+ let ok=false;
+ if(canCopyImg()){try{await navigator.clipboard.write([new ClipboardItem({'image/png':cardImage(g)})]);ok=true;}catch(e){}}
+ if(!ok){const bl=await cardImage(g);dlBlob(bl,'Nimantran_'+safeName(g)+'.png');}
+ toast(ok?'कार्ड फ़ोटो कॉपी ✔ — चैट में Paste करें':'कार्ड फ़ोटो डाउनलोड हुई — चैट में 📎 से जोड़ें');
+ const w=window.open(url,'_blank');if(!w)location.href=url;
+};
 $('mDone').onclick=()=>{if(cur)markSent(cur,true);};
 $('mEdit').onclick=()=>{if(!cur)return;$('eN').value=cur.name;$('eA').value=cur.addr;$('eP').value=cur.phone;$('mEditBox').style.display='grid';};
 $('eSave').onclick=()=>{if(!cur)return;const en=$('eN').value,ea=$('eA').value.trim();cur.name=cleanName(hiOn()?TL(en):en)||cur.name;cur.addr=hiOn()?TL(ea):ea;cur.phone=$('eP').value.replace(/\D/g,'');save();render();openSend(cur);};
