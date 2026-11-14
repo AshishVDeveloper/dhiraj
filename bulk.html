@@ -117,7 +117,8 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
  <section class="card">
   <h2>3. मेहमान</h2>
   <div class="stats"><div class="stat">कुल <b id="sTot">0</b></div><div class="stat">भेजे गए <b id="sSent">0</b></div><div class="stat">बाकी <b id="sLeft">0</b></div></div>
-  <div class="row" style="margin:-4px 0 10px"><button class="btn b-l" id="toHiBtn">🔤 सूची के English नाम हिंदी में बदलें</button></div>
+  <div class="row" style="margin:-4px 0 10px"><button class="btn b-l" id="toHiBtn">🔤 सूची के English नाम हिंदी में बदलें</button>
+   <button class="btn b-l" id="expPdf">📄 सूची PDF</button><button class="btn b-l" id="expCsv">📊 सूची CSV (Excel)</button></div>
   <div class="list" id="list"></div>
  </section>
 </main>
@@ -1063,18 +1064,21 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clear
 function prog(t){const p=$('prog');if(t){p.textContent=t;p.classList.remove('hidden');}else p.classList.add('hidden');}
 
 /* ---------- parsing ---------- */
-function cleanName(n){return n.replace(/^\s*(श्री(मती)?|shri|shree|sri|mr\.?)\s*\.?\s*/i,'').trim();}
+function cleanName(n){return n.replace(/^\s*(श्री(मती)?|shri|shree|sri|mr\.?)\s*\.?\s*/i,'').replace(/\s+(जी|ji)\s*$/i,'').trim();}
+function splitLine(l){if(l.indexOf('"')<0)return l.split(/\t|,|\|/);const o=[];let cur='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'&&l[i+1]==='"'){cur+='"';i++;}else if(ch==='"')q=false;else cur+=ch;}else if(ch==='"')q=true;else if(ch===','||ch==='\t'||ch==='|'){o.push(cur);cur='';}else cur+=ch;}o.push(cur);return o;}
 function parseLines(txt){
  const out=[];
  txt.split(/\r?\n/).forEach((line,i)=>{
   if(!line.trim())return;
-  let f=line.split(/\t|,|\|/).map(x=>x.replace(/^"|"$/g,'').trim()).filter(x=>x);
+  let f=splitLine(line.replace(/^\ufeff/,'')).map(x=>x.replace(/^"|"$/g,'').trim()).filter(x=>x);
   if(!f.length)return;
-  if(i===0&&/^(name|naam|नाम)$/i.test(f[0]))return;
-  let phone='';const rest=[];
+  if(i===0&&(/^(name|naam|नाम|क्रम|#|sr\.?\s*no\.?)$/i.test(f[0])||/^(name|naam|नाम)$/i.test(f[1]||'')))return;
+  let phone='',sent=false;const rest=[];
+  f=f.filter(x=>{if(/^(भेजा गया|भेजा|sent)$/i.test(x)){sent=true;return false;}if(/^(बाकी|pending)$/i.test(x))return false;if(/^\d{1,4}$/.test(x)&&f.indexOf(x)===0)return false;return true;});
+  if(!f.length)return;
   f.forEach(x=>{const d=x.replace(/\D/g,'');if(!phone&&d.length>=10&&d.length<=13&&/^[+\d\s\-()]+$/.test(x))phone=d;else rest.push(x);});
   if(!rest.length)return;
-  out.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:cleanName(hiOn()?TL(rest[0]):rest[0]),addr:hiOn()?TL(rest.slice(1).join(', ')):rest.slice(1).join(', '),phone,sent:false});
+  out.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:cleanName(hiOn()?TL(rest[0]):rest[0]),addr:hiOn()?TL(rest.slice(1).join(', ')):rest.slice(1).join(', '),phone,sent});
  });
  return out;
 }
@@ -1253,6 +1257,58 @@ $('allPdfBtn').onclick=async()=>{
 /* ---------- inputs ---------- */
 $('addBtn').onclick=()=>{const n=parseLines($('bulkIn').value);if(!n.length)return toast('कोई नाम नहीं मिला');S.guests.push(...n);save();render();$('bulkIn').value='';prevHi();toast(n.length+' मेहमान जोड़े गए ✔');};
 $('csv').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const n=parseLines(String(r.result));S.guests.push(...n);save();render();toast(n.length+' मेहमान जोड़े गए ✔');};r.readAsText(f,'utf-8');e.target.value='';};
+/* ---------- export list ---------- */
+function stamp(){const d=new Date();return d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear();}
+$('expCsv').onclick=()=>{
+ const G=S.guests;if(!G.length)return toast('सूची खाली है');
+ const q=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
+ const rows=[['क्रम','नाम','गाँव / पता','मोबाइल','स्थिति']].concat(G.map((g,i)=>[i+1,'श्री '+fullName(g),g.addr,g.phone?"'"+g.phone:'',g.sent?'भेजा गया':'बाकी']));
+ const csv='\ufeff'+rows.map(r=>r.map((v,j)=>j===3&&String(v).startsWith("'")?q(String(v).slice(1)):q(v)).join(',')).join('\r\n');
+ dlBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'Mehman_Suchi_'+stamp()+'.csv');toast('CSV डाउनलोड ✔');
+};
+$('expPdf').onclick=async()=>{
+ const G=S.guests;if(!G.length)return toast('सूची खाली है');
+ prog('PDF बन रही है…');
+ try{
+  await ready();
+  const W=1240,H=1754,M=60,RH=46;const cols=[[M,70,'क्रम'],[M+70,430,'नाम'],[M+500,370,'गाँव / पता'],[M+870,190,'मोबाइल'],[M+1060,60,'✔']];
+  const perFirst=Math.floor((H-(M+250)-RH-120)/RH),per=Math.floor((H-(M+30)-RH-120)/RH);
+  const pages=[];let i=0;while(i<G.length){const n=pages.length?per:perFirst;pages.push(G.slice(i,i+n).map((g,k)=>[i+k,g]));i+=n;}
+  const pdf=new jspdf.jsPDF({unit:'mm',format:'a4',compress:true});
+  const sent=G.filter(g=>g.sent).length;
+  const fit=(ctx,t,w)=>{if(ctx.measureText(t).width<=w)return t;while(t.length&&ctx.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…';};
+  pages.forEach((rows,pi)=>{
+   const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+   x.fillStyle='#fff';x.fillRect(0,0,W,H);
+   x.strokeStyle='#c8952e';x.lineWidth=3;x.strokeRect(25,25,W-50,H-50);x.strokeStyle='#7d0f1e';x.lineWidth=1.5;x.strokeRect(33,33,W-66,H-66);
+   let y=M+20;
+   if(pi===0){
+    x.textAlign='center';x.fillStyle='#7d0f1e';x.font='54px Yatra';x.fillText('मेहमान सूची',W/2,y+50);
+    x.font='700 25px Noto';x.fillStyle='#3b1d0e';x.fillText('शुभ विवाह – चि० धीरज विश्वकर्मा संग आयु० कु० प्रिया विश्वकर्मा',W/2,y+100);
+    x.font='400 21px Noto';x.fillStyle='#6b4a22';x.fillText('बारात प्रस्थान – 11 दिसम्बर 2026, शुक्रवार',W/2,y+136);
+    x.font='700 22px Noto';x.fillStyle='#7d0f1e';x.fillText('कुल मेहमान: '+G.length+'     भेजे गए: '+sent+'     बाकी: '+(G.length-sent)+'     (दिनांक: '+stamp()+')',W/2,y+180);
+    y=M+250;
+   }else y=M+30;
+   x.textAlign='left';x.fillStyle='#7d0f1e';x.fillRect(M,y,W-2*M,RH);
+   x.fillStyle='#fff4d6';x.font='700 21px Noto';cols.forEach(([cx,cw,t])=>x.fillText(t,cx+10,y+31));
+   y+=RH;
+   rows.forEach(([idx,g],r)=>{
+    x.fillStyle=r%2?'#fdf6e6':'#ffffff';x.fillRect(M,y,W-2*M,RH);
+    x.strokeStyle='#ead9b0';x.lineWidth=1;x.beginPath();x.moveTo(M,y+RH);x.lineTo(W-M,y+RH);x.stroke();
+    x.fillStyle='#3b1d0e';x.font='400 20px Noto';x.fillText(String(idx+1),cols[0][0]+14,y+31);
+    x.font='700 20px Noto';x.fillStyle='#7d0f1e';x.fillText(fit(x,'श्री '+fullName(g),cols[1][1]-16),cols[1][0]+10,y+31);
+    x.font='400 19px Noto';x.fillStyle='#3b1d0e';x.fillText(fit(x,g.addr||'—',cols[2][1]-16),cols[2][0]+10,y+31);
+    x.fillText(g.phone||'—',cols[3][0]+10,y+31);
+    x.font='700 22px Noto';x.fillStyle=g.sent?'#1fa855':'#c8952e';x.fillText(g.sent?'✔':'•',cols[4][0]+22,y+32);
+    y+=RH;});
+   x.strokeStyle='#c8952e';x.lineWidth=1.5;x.strokeRect(M,(pi===0?M+250:M+30),W-2*M,y-(pi===0?M+250:M+30));
+   x.textAlign='center';x.font='400 18px Noto';x.fillStyle='#6b4a22';x.fillText('पेज '+(pi+1)+' / '+pages.length+'   ·   ✔ = भेजा गया   • = बाकी',W/2,H-58);
+   if(pi)pdf.addPage('a4');pdf.addImage(c.toDataURL('image/jpeg',.88),'JPEG',0,0,210,297);
+  });
+  dlBlob(pdf.output('blob'),'Mehman_Suchi_'+stamp()+'.pdf');toast('PDF डाउनलोड ✔');
+ }catch(e){toast('गड़बड़: '+e.message);}finally{prog();}
+};
+
 /* ---------- contacts ---------- */
 function addContacts(list){
  const have=new Set(S.guests.map(g=>(g.phone||'').slice(-10)).filter(Boolean));let added=0,dup=0;
