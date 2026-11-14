@@ -54,6 +54,12 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
 .g .sub{font-size:12.5px;color:#6b4a22;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .g .acts{display:flex;gap:6px;flex:none}
 .g .acts .btn{padding:8px 11px}
+.g.editing{flex-wrap:wrap;background:#fff8e6;border-color:var(--g)}
+.ef{display:grid;gap:7px;width:100%;margin-top:4px}
+.ef label{font-size:12.5px;font-weight:700;color:var(--m);margin-bottom:-4px}
+.ef input{padding:9px 10px;font-size:15px}
+.ef .pv{font-size:13px;color:#6b4a22;background:#fbf0d6;border-radius:8px;padding:5px 9px;display:none}
+.ef .r{display:flex;gap:8px;justify-content:flex-end}
 .empty{text-align:center;color:#9a7a4a;padding:18px;font-size:14px}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:9;background:#fff;border-top:2px solid var(--g);padding:10px 12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;box-shadow:0 -3px 12px rgba(0,0,0,.08)}
 .modal{position:fixed;inset:0;z-index:30;background:rgba(25,8,4,.7);display:flex;align-items:center;justify-content:center;padding:12px}
@@ -1134,21 +1140,44 @@ async function download(g){const r=await build(g);r.files.forEach((f,i)=>setTime
 
 /* ---------- list UI ---------- */
 function esc(t){return (t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+let editId=null;
 function render(){
  const L=$('list');const G=S.guests;
  $('sTot').textContent=G.length;const sent=G.filter(g=>g.sent).length;$('sSent').textContent=sent;$('sLeft').textContent=G.length-sent;
  if(!G.length){L.innerHTML='<div class="empty">अभी कोई मेहमान नहीं है — ऊपर सूची जोड़ें।</div>';return;}
- L.innerHTML=G.map((g,i)=>`<div class="g ${g.sent?'sent':''}" data-id="${g.id}">
+ L.innerHTML=G.map((g,i)=>`<div class="g ${g.sent?'sent':''} ${editId===g.id?'editing':''}" data-id="${g.id}">
   <div class="no">${g.sent?'✔':i+1}</div>
   <div class="info"><div class="nm">श्री ${esc(fullName(g))}</div><div class="sub">${esc(g.addr||'—')} · ${g.phone?esc(g.phone):'<span style="color:#c0182c">मोबाइल नहीं</span>'}</div></div>
-  <div class="acts"><button class="btn b-w" data-a="open">💬<span class="t"> भेजें</span></button><button class="btn b-l" data-a="dl">⬇</button><button class="btn b-x" data-a="del">✕</button></div></div>`).join('');
+  <div class="acts"><button class="btn b-w" data-a="open">💬<span class="t"> भेजें</span></button><button class="btn b-l" data-a="edit" title="नाम / गाँव बदलें">✏️</button><button class="btn b-l" data-a="dl">⬇</button><button class="btn b-x" data-a="del">✕</button></div>
+  ${editId===g.id?`<div class="ef">
+   <label>नाम</label><input type="text" class="eN" value="${esc(g.name)}" placeholder="नाम (English या हिंदी)">
+   <label>गाँव / पता</label><input type="text" class="eA" value="${esc(g.addr)}" placeholder="जैसे: ग्राम चेतरा, कुण्डा / Gram Chetra">
+   <label>मोबाइल</label><input type="tel" class="eP" value="${esc(g.phone)}" placeholder="मोबाइल नंबर" inputmode="tel">
+   <div class="pv"></div>
+   <div class="r"><button class="btn b-l" data-a="ecancel">रद्द करें</button><button class="btn b-m" data-a="esave">💾 सेव करें</button></div></div>`:''}</div>`).join('');
+ if(editId){const r=L.querySelector('.g.editing');if(r){const i=r.querySelector('.eN');i.focus();i.setSelectionRange(i.value.length,i.value.length);r.scrollIntoView({block:'nearest'});}}
 }
 $('list').addEventListener('click',async e=>{
  const b=e.target.closest('button');if(!b)return;const id=b.closest('.g').dataset.id;const g=S.guests.find(x=>x.id===id);if(!g)return;
  if(b.dataset.a==='open')openSend(g);
+ if(b.dataset.a==='edit'){editId=editId===id?null:id;render();return;}
+ if(b.dataset.a==='ecancel'){editId=null;render();return;}
+ if(b.dataset.a==='esave'){saveRow(b.closest('.g'),g);return;}
  if(b.dataset.a==='dl'){prog('कार्ड बन रहा है…');try{await download(g);}finally{prog();}}
  if(b.dataset.a==='del'){if(confirm('“'+g.name+'” को सूची से हटाएँ?')){S.guests=S.guests.filter(x=>x.id!==id);save();render();}}
 });
+
+function saveRow(row,g){
+ const n=row.querySelector('.eN').value.trim(),a=row.querySelector('.eA').value.trim(),p=row.querySelector('.eP').value;
+ if(!n){toast('नाम खाली नहीं हो सकता');return;}
+ g.name=cleanName(hiOn()?TL(n):n)||g.name;g.addr=hiOn()?TL(a):a;g.phone=p.replace(/\D/g,'');
+ editId=null;save();render();toast('सेव हो गया ✔');}
+$('list').addEventListener('input',e=>{const row=e.target.closest('.g.editing');if(!row)return;const pv=row.querySelector('.pv');
+ const n=row.querySelector('.eN').value,a=row.querySelector('.eA').value;
+ if(!hiOn()||!(TL.has(n)||TL.has(a))){pv.style.display='none';return;}
+ pv.style.display='block';pv.innerHTML='हिंदी में: <b style="color:#7d0f1e">'+esc(cleanName(TL(n)))+'</b>'+(a.trim()?' · '+esc(TL(a)):'');});
+$('list').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.closest('.g.editing')){const row=e.target.closest('.g');saveRow(row,S.guests.find(x=>x.id===row.dataset.id));}
+ if(e.key==='Escape'){editId=null;render();}});
 
 /* ---------- send modal ---------- */
 let cur=null;
