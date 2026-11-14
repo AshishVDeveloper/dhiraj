@@ -82,7 +82,9 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
   <p class="help">हर लाइन में एक मेहमान: <code>नाम, गाँव/पता, मोबाइल</code><br>
   उदाहरण: <code>रमेश कुमार विश्वकर्मा, ग्राम चेतरा कुण्डा, 9876543210</code><br>
   Excel से कॉपी करके भी सीधे पेस्ट कर सकते हैं (नाम | पता | मोबाइल कॉलम)। पता और मोबाइल वैकल्पिक हैं।</p>
-  <textarea id="bulkIn" placeholder="रमेश कुमार विश्वकर्मा, ग्राम चेतरा कुण्डा, 9876543210&#10;सुरेश प्रसाद, प्रतापगढ़, 9123456789"></textarea>
+  <textarea id="bulkIn" placeholder="Ramesh Kumar Vishwakarma, Gram Chetra Kunda, 9876543210&#10;सुरेश प्रसाद, प्रतापगढ़, 9123456789"></textarea>
+  <label class="chk"><input type="checkbox" id="hi" checked> English में लिखा नाम/पता अपने-आप <b>हिंदी</b> में बदलें</label>
+  <div id="hiPrev" class="help" style="margin:6px 0 0;display:none;background:#fbf0d6;border-radius:8px;padding:6px 10px"></div>
   <div class="row">
    <button class="btn b-m" id="addBtn">➕ सूची में जोड़ें</button>
    <label class="btn b-l" style="cursor:pointer">📄 CSV फ़ाइल<input type="file" id="csv" accept=".csv,.txt,text/csv,text/plain" hidden></label>
@@ -106,6 +108,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
  <section class="card">
   <h2>3. मेहमान</h2>
   <div class="stats"><div class="stat">कुल <b id="sTot">0</b></div><div class="stat">भेजे गए <b id="sSent">0</b></div><div class="stat">बाकी <b id="sLeft">0</b></div></div>
+  <div class="row" style="margin:-4px 0 10px"><button class="btn b-l" id="toHiBtn">🔤 सूची के English नाम हिंदी में बदलें</button></div>
   <div class="list" id="list"></div>
  </section>
 </main>
@@ -148,6 +151,488 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
 <div class="prog hidden" id="prog">तैयार हो रहा है…</div>
 <div class="toast" id="toast"></div>
 
+<script>/* Hinglish -> Hindi (Devanagari) transliteration: dictionary + rules, works offline */
+var TL=(function(){
+var D={};
+function add(s){s.trim().split(/\n/).forEach(function(l){l=l.trim();if(!l)return;var p=l.split('=');var hi=p[1].trim();p[0].split(',').forEach(function(k){k=k.trim().toLowerCase();if(k)D[k]=hi;});});}
+add(`
+shri,shree,sri,shriman=श्री
+smt,shrimati,shreemati,mrs=श्रीमती
+mr=श्री
+dr=डॉ०
+late,swa,swargiya,sw=स्व०
+sushri=सुश्री
+ji=जी
+sahab,saheb,sahib=साहब
+master=मास्टर
+pradhan=प्रधान
+family,pariwar,parivar=परिवार
+saparivar=सपरिवार
+sahit=सहित
+evam,and=एवं
+ram=राम
+shyam=श्याम
+mohan=मोहन
+sohan=सोहन
+rohan=रोहन
+ramesh=रमेश
+suresh=सुरेश
+mahesh=महेश
+dinesh=दिनेश
+rajesh=राजेश
+rakesh=राकेश
+mukesh=मुकेश
+naresh=नरेश
+umesh=उमेश
+ganesh=गणेश
+yogesh=योगेश
+brijesh,brajesh=ब्रजेश
+kamlesh,kamalesh=कमलेश
+akhilesh=अखिलेश
+shailesh=शैलेश
+rajnish,rajneesh=रजनीश
+ashish,aashish,ashis,aasish,asheesh=आशीष
+ashok=अशोक
+alok,aalok=आलोक
+anil=अनिल
+sunil=सुनील
+sushil=सुशील
+manish=मनीष
+harish=हरीश
+satish=सतीश
+jagdish,jagadish=जगदीश
+girish=गिरीश
+dilip,dileep=दिलीप
+pradeep,pradip=प्रदीप
+sandeep,sandip=संदीप
+kuldeep,kuldip=कुलदीप
+deepak=दीपक
+vinod=विनोद
+pramod=प्रमोद
+manoj=मनोज
+saroj=सरोज
+santosh=संतोष
+subhash=सुभाष
+prakash=प्रकाश
+vikas=विकास
+akash,aakash=आकाश
+kailash=कैलाश
+vijay=विजय
+ajay=अजय
+sanjay=संजय
+abhay=अभय
+uday=उदय
+ravi=रवि
+hari=हरि
+raju=राजू
+ramu=रामू
+pappu=पप्पू
+guddu=गुड्डू
+bablu,babloo=बबलू
+pintu,pintoo=पिंटू
+sonu,sonoo=सोनू
+monu,monoo=मोनू
+golu=गोलू
+chhotu,chotu=छोटू
+rahul=राहुल
+rohit=रोहित
+mohit=मोहित
+amit=अमित
+sumit=सुमित
+ankit=अंकित
+lalit=ललित
+vineet,vinit=विनीत
+puneet,punit=पुनीत
+ankur=अंकुर
+anuj=अनुज
+arun=अरुण
+varun=वरुण
+tarun=तरुण
+karan=करण
+arjun=अर्जुन
+krishna,krishn,krishan=कृष्ण
+kishan=किशन
+kishor,kishore=किशोर
+anand,aanand=आनंद
+govind=गोविंद
+gopal=गोपाल
+gopi=गोपी
+mahendra,mahendr=महेन्द्र
+surendra,surendr=सुरेन्द्र
+narendra,narendr=नरेन्द्र
+rajendra,rajendr=राजेन्द्र
+devendra,devendr=देवेन्द्र
+jitendra,jitender,jitendr=जितेन्द्र
+dharmendra,dharmendr=धर्मेन्द्र
+virendra,veerendra,virendr=वीरेन्द्र
+shailendra=शैलेन्द्र
+gyanendra=ज्ञानेन्द्र
+yogendra=योगेन्द्र
+chandra,chandr,chander=चन्द्र
+ramchandra,ramchandr,ramchander=रामचन्द्र
+dhiraj,dheeraj,diraj=धीरज
+neeraj,niraj=नीरज
+pankaj=पंकज
+raj=राज
+rajan=राजन
+pawan,pavan=पवन
+sawan,savan=सावन
+gagan=गगन
+chandan=चंदन
+nitin=नितिन
+sachin=सचिन
+vipin=विपिन
+navin,naveen=नवीन
+pravin,praveen=प्रवीण
+shivam=शिवम
+shiv,shiva=शिव
+sundar=सुंदर
+suraj,sooraj=सूरज
+deepanjali,dipanjali=दीपांजलि
+priyanshu,priyanshoo=प्रियांशू
+himanshu=हिमांशु
+sudhanshu=सुधांशु
+divyanshu=दिव्यांशु
+aryan=आर्यन
+aarav,arav=आरव
+vivek=विवेक
+abhishek=अभिषेक
+rishabh=ऋषभ
+shubham=शुभम
+satyam=सत्यम
+ranjeet,ranjit=रणजीत
+ajeet,ajit=अजीत
+vishal=विशाल
+kunal=कुणाल
+gaurav=गौरव
+saurabh=सौरभ
+nikhil=निखिल
+akhil=अखिल
+kumar=कुमार
+prasad,parsad,prashad=प्रसाद
+lal,laal=लाल
+nath=नाथ
+das=दास
+chand=चंद
+deen,din,dheen=दीन
+dayal=दयाल
+narayan,narayana=नारायण
+sharan=शरण
+shankar=शंकर
+bahadur=बहादुर
+pratap,partap=प्रताप
+bihari=बिहारी
+murari=मुरारी
+awadh,avadh=अवध
+devidin,devideen,devi deen=देवीदीन
+khelawan,khelavan=खेलावन
+ramkhelawan,ramkhelavan=रामखेलावन
+mata=माता
+mataprasad=माताप्रसाद
+babu=बाबू
+babulal,babbulal=बाबूलाल
+mohanlal=मोहनलाल
+rameshwar,rameshvar,rameswar=रामेश्वर
+ishwar,ishvar=ईश्वर
+bhagwan,bhagvan=भगवान
+bhagwati,bhagvati=भगवती
+jagannath=जगन्नाथ
+kamta,kamata=कामता
+sita,seeta=सीता
+gita,geeta=गीता
+rita,reeta=रीता
+sunita=सुनीता
+anita=अनीता
+vinita=विनीता
+kavita=कविता
+savita=सविता
+mamta,mamata=ममता
+sangeeta,sangita=संगीता
+sarita=सरिता
+rekha=रेखा
+neha=नेहा
+sneha=स्नेहा
+pooja,puja=पूजा
+priya=प्रिया
+riya=रिया
+khushi=खुशी
+kajal=काजल
+komal=कोमल
+shalini=शालिनी
+nandini=नंदिनी
+anjali=अंजलि
+sonali=सोनाली
+deepa=दीपा
+deepika=दीपिका
+radha=राधा
+lakshmi,laxmi,lakshmee=लक्ष्मी
+saraswati=सरस्वती
+parvati=पार्वती
+kamla,kamala=कमला
+vimla,vimala=विमला
+shanti,shaanti=शांति
+sushila,sushilaa=सुशीला
+urmila=उर्मिला
+pushpa=पुष्पा
+manju=मंजू
+anju=अंजू
+renu=रेनू
+meena=मीना
+reena=रीना
+seema=सीमा
+nisha=निशा
+usha=उषा
+asha=आशा
+suman=सुमन
+poonam,punam=पूनम
+kiran=किरण
+archana=अर्चना
+sadhana=साधना
+vandana=वंदना
+kalpana=कल्पना
+ranjana=रंजना
+aarti,arti,aarati=आरती
+bharti,bharati=भारती
+preeti,priti=प्रीति
+jyoti=ज्योति
+shweta=श्वेता
+swati=स्वाति
+divya=दिव्या
+kalawati,kalavati=कलावती
+phoolmati,phulmati=फूलमती
+rajkumari=राजकुमारी
+kumari=कुमारी
+devi=देवी
+vishwakarma,vishvakarma,viswakarma,bishwakarma,vishwkarma,vishwakarmaa,vishkarma=विश्वकर्मा
+sharma=शर्मा
+verma,varma=वर्मा
+gupta=गुप्ता
+mishra,misra=मिश्रा
+tiwari,tiwary,tewari=तिवारी
+tripathi=त्रिपाठी
+pandey,pandeya,pande=पाण्डेय
+shukla=शुक्ला
+dubey,dube=दुबे
+dwivedi=द्विवेदी
+chaturvedi=चतुर्वेदी
+trivedi=त्रिवेदी
+upadhyay,upadhyaya=उपाध्याय
+yadav=यादव
+maurya,mourya=मौर्य
+patel=पटेल
+singh=सिंह
+thakur=ठाकुर
+pal=पाल
+gautam=गौतम
+kushwaha=कुशवाहा
+chaurasia,chaurasiya=चौरसिया
+jaiswal=जायसवाल
+agrahari=अग्रहरि
+kesarwani=केसरवानी
+srivastava,shrivastava=श्रीवास्तव
+saxena=सक्सेना
+nigam=निगम
+kanaujia,kanojia=कनौजिया
+prajapati=प्रजापति
+nishad=निषाद
+lohar=लोहार
+sonkar=सोनकर
+rawat=रावत
+chauhan=चौहान
+rajput=राजपूत
+rathore,rathaur=राठौर
+ojha=ओझा
+dixit,dikshit=दीक्षित
+bajpai,vajpayee,bajpayee=बाजपेयी
+awasthi=अवस्थी
+bhatt=भट्ट
+joshi=जोशी
+mehta=मेहता
+jain=जैन
+agarwal,agrawal=अग्रवाल
+khan=खान
+ansari=अंसारी
+ahmad,ahmed=अहमद
+mohammad,mohammed,mohd=मोहम्मद
+ali=अली
+rajbhar=राजभर
+kori=कोरी
+sen=सेन
+kewat=केवट
+chaudhary,choudhary,chaudhari,chaudhry=चौधरी
+gram,graam,gaon,gaav,gav,village,vill,vil,grm=ग्राम
+post,po=पो०
+ps,thana=थाना
+dist,distt,district,jila,zila,jilla=जिला
+tehsil,tahsil=तहसील
+block=ब्लॉक
+mohalla=मोहल्ला
+nagar=नगर
+colony=कॉलोनी
+road=रोड
+kunda,kundaa=कुण्डा
+pratapgarh,partapgarh,pratapgadh,pratapgar=प्रतापगढ़
+prayagraj=प्रयागराज
+allahabad=इलाहाबाद
+lucknow=लखनऊ
+mumbai=मुंबई
+bombay=बम्बई
+delhi=दिल्ली
+surat=सूरत
+pune=पुणे
+thane=ठाणे
+kalyan=कल्याण
+varanasi=वाराणसी
+banaras=बनारस
+kanpur=कानपुर
+jaunpur=जौनपुर
+sultanpur=सुल्तानपुर
+raebareli,raibareli,raebarely=रायबरेली
+amethi=अमेठी
+kaushambi=कौशाम्बी
+lalganj=लालगंज
+patti=पट्टी
+raniganj=रानीगंज
+babaganj=बाबागंज
+kalakankar=कालाकांकर
+maheshganj,mahesganj=महेशगंज
+chetra,chetara=चेतरा
+bihar=बिहार
+manikpur=मानिकपुर
+hathigawan,hathigavan=हथिगवां
+sangipur=सांगीपुर
+jethwara=जेठवारा
+baghwait,baghwaait,baghvait=बघवाइत
+chitamanpur=चितामनपुर
+patna=पटना
+up=उ.प्र.
+uttar=उत्तर
+pradesh=प्रदेश
+bazar,bazaar=बाज़ार
+ganj=गंज
+pur=पुर
+purwa,purva=पुरवा
+pure=पूरे
+ka=का
+amar=अमर
+shekhar=शेखर
+sagar=सागर
+kamal=कमल
+hanuman=हनुमान
+raghav=राघव
+madhav=माधव
+bharat=भरत
+sharad=शरद
+rajat=रजत
+jai,jay=जय
+bhola=भोला
+raghu=रघु
+sant=संत
+anurag=अनुराग
+gulab=गुलाब
+sanjeev,sanjiv=संजीव
+rajeev,rajiv=राजीव
+keshav=केशव
+dharm,dharam=धर्म
+lakhan=लखन
+laxman,lakshman=लक्ष्मण
+balram=बलराम
+baldev=बलदेव
+sukhdev=सुखदेव
+mahadev=महादेव
+dev,deo=देव
+jagat=जगत
+ramjeet,ramjit=रामजीत
+ramdhani=रामधनी
+dular,dulare=दुलारे
+chhedi,chedi=छेदी
+munna=मुन्ना
+munni=मुन्नी
+pinki,pinky=पिंकी
+rinku,rinkoo=रिंकू
+tinku=टिंकू
+bunty,banti=बंटी
+sonam=सोनम
+sapna=सपना
+kusum=कुसुम
+sudha=सुधा
+sushma=सुषमा
+madhu=मधु
+sheela,shila=शीला
+leela,lila=लीला
+mala=माला
+malti,malati=मालती
+shakuntala=शकुंतला
+sumitra=सुमित्रा
+kaushalya=कौशल्या
+janki,janaki=जानकी
+kanhaiya,kanhaiyya=कन्हैया
+bhaiya,bhaiyya=भैया
+chacha=चाचा
+chachi=चाची
+mama=मामा
+mami=मामी
+mausi=मौसी
+bua=बुआ
+nana=नाना
+nani=नानी
+dada=दादा
+dadi=दादी
+bhabhi=भाभी
+didi=दीदी
+jija=जीजा
+bhai=भाई
+pati=पति
+wati,vati=वती
+raja=राजा
+rani=रानी
+ganga=गंगा
+yamuna,jamuna=यमुना
+shivshankar=शिवशंकर
+gaya=गया
+nand=नंद
+pyare,pyarey=प्यारे
+ki=की
+ke=के
+`);
+var C={chh:'छ',kh:'ख',gh:'घ',ch:'च',jh:'झ',th:'थ',dh:'ध',ph:'फ',bh:'भ',sh:'श',k:'क',g:'ग',c:'क',j:'ज',t:'त',d:'द',n:'न',p:'प',f:'फ',b:'ब',m:'म',y:'य',r:'र',l:'ल',v:'व',w:'व',s:'स',h:'ह',q:'क',z:'ज',x:'क्स'};
+var V={aa:['आ','ा'],ai:['ऐ','ै'],au:['औ','ौ'],ee:['ई','ी'],ii:['ई','ी'],oo:['ऊ','ू'],uu:['ऊ','ू'],a:['अ',''],i:['इ','ि'],u:['उ','ु'],e:['ए','े'],o:['ओ','ो']};
+function units(w){var u=[],i=0;
+ while(i<w.length){var m=null;
+  for(var L=3;L>=1&&!m;L--){var s=w.substr(i,L);if(C[s]&&s.length===L)m={t:'c',k:s};else if(V[s]&&s.length===L&&L<=2)m={t:'v',k:s};}
+  if(!m)m={t:'x',k:w[i]};u.push(m);i+=m.k.length;}
+ return u;}
+function rule(w,cp){
+ var u=units(w);var nv=u.filter(function(x){return x.t==='v';}).length;
+ var lastV=-1;for(var i=u.length-1;i>=0;i--)if(u[i].t==='v'){lastV=i;break;}
+ if(lastV>0&&u[lastV-1].t==='c'){var v=u[lastV],after=u.slice(lastV+1);
+  if(!after.length){if(v.k==='a')v.k='aa';else if(v.k==='i')v.k='ee';else if(v.k==='u'&&!cp)v.k='oo';}
+  else if(v.k==='a'&&(nv===1||(after.length===1&&/^(r|l|sh|b|g|p)$/.test(after[0].k))))v.k='aa';
+  else if(v.k==='i'&&nv>1&&after.length===1&&after[0].k!=='t')v.k='ee';}
+ var o='';
+ for(var j=0;j<u.length;j++){var x=u[j],p=u[j-1],nx=u[j+1];
+  if(x.t==='c'){
+   if((x.k==='n'||x.k==='m')&&p&&p.t==='v'&&nx&&nx.t==='c'&&j>0){o+=(x.k==='m'&&/^(p|b|bh|ph)$/.test(nx.k))?'ं':'ं';continue;}
+   o+=C[x.k];if(nx&&nx.t==='c')o+='्';}
+  else if(x.t==='v'){o+=(p&&p.t==='c')?V[x.k][1]:V[x.k][0];}
+  else o+=x.k;}
+ return o;}
+function seg(w){ /* split compound like ramkumar -> ram+kumar */
+ var n=w.length,best=new Array(n+1);best[0]=[];
+ for(var i=0;i<n;i++){if(!best[i])continue;for(var j=i+2;j<=n;j++){var p=w.slice(i,j);if(D[p]&&(!best[j]||best[j].length>best[i].length+1))best[j]=best[i].concat([D[p]]);}}
+ return best[n]&&best[n].length<=3?best[n].reduce(join,''):null;}
+var MAT={'अ':'','आ':'ा','इ':'ि','ई':'ी','उ':'ु','ऊ':'ू','ए':'े','ऐ':'ै','ओ':'ो','औ':'ौ'};
+function join(a,b){if(a&&b&&MAT[b[0]]!==undefined&&/[क-ह़]$/.test(a))return a+MAT[b[0]]+b.slice(1);return a+b;}
+function word(w){var k=w.toLowerCase();if(D[k])return D[k];var s=seg(k);if(s)return s;
+ var n=k.length,j,t;
+ for(j=2;j<=n-3;j++){t=seg(k.slice(j));if(t&&k.slice(j).length>=3)return join(rule(k.slice(0,j),1),t);}
+ for(j=n-2;j>=3;j--){if(D[k.slice(0,j)])return join(D[k.slice(0,j)],rule(k.slice(j)));}
+ return rule(k);}
+function tl(s){if(!s||!/[A-Za-z]/.test(s))return s||'';
+ return s.replace(/\b(s|d|w)\/o\b/gi,'').replace(/[A-Za-z]+/g,function(w){return word(w);}).replace(/\s{2,}/g,' ').trim();}
+tl.has=function(s){return /[A-Za-z]/.test(s||'');};
+return tl;})();
+</script>
 <script>/** @license
  *
  * jsPDF - PDF Document creation from JavaScript
@@ -559,7 +1044,7 @@ const DEF_MSG=`🙏 सादर निमंत्रण 🙏
 
 const $=id=>document.getElementById(id);
 const KEY='dhiraj_vivah_bulk_v1';
-let S={guests:[],msg:DEF_MSG,fmt:'pdf',cc:'91',ji:true,lnk:true};
+let S={guests:[],msg:DEF_MSG,fmt:'pdf',cc:'91',ji:true,lnk:true,hi:true};
 try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)S=Object.assign(S,s);}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 const cache=new Map();
@@ -580,10 +1065,11 @@ function parseLines(txt){
   let phone='';const rest=[];
   f.forEach(x=>{const d=x.replace(/\D/g,'');if(!phone&&d.length>=10&&d.length<=13&&/^[+\d\s\-()]+$/.test(x))phone=d;else rest.push(x);});
   if(!rest.length)return;
-  out.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:cleanName(rest[0]),addr:rest.slice(1).join(', '),phone,sent:false});
+  out.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:cleanName(hiOn()?TL(rest[0]):rest[0]),addr:hiOn()?TL(rest.slice(1).join(', ')):rest.slice(1).join(', '),phone,sent:false});
  });
  return out;
 }
+function hiOn(){return S.hi!==false;}
 function waNum(p){let d=(p||'').replace(/\D/g,'');const cc=(S.cc||'91').replace(/\D/g,'');
  if(!d)return '';if(d.length===11&&d[0]==='0')d=d.slice(1);if(d.length===10)return cc+d;if(d.length>10)return d;return '';}
 function fullName(g){let n=g.name.trim();if(S.ji&&!/जी$/.test(n))n+=' जी';return n;}
@@ -694,7 +1180,7 @@ $('mShare').onclick=async()=>{
 function markSent(g,next){g.sent=true;save();render();if(next)sendNext(g);}
 $('mDone').onclick=()=>{if(cur)markSent(cur,true);};
 $('mEdit').onclick=()=>{if(!cur)return;$('eN').value=cur.name;$('eA').value=cur.addr;$('eP').value=cur.phone;$('mEditBox').style.display='grid';};
-$('eSave').onclick=()=>{if(!cur)return;cur.name=cleanName($('eN').value)||cur.name;cur.addr=$('eA').value.trim();cur.phone=$('eP').value.replace(/\D/g,'');save();render();openSend(cur);};
+$('eSave').onclick=()=>{if(!cur)return;const en=$('eN').value,ea=$('eA').value.trim();cur.name=cleanName(hiOn()?TL(en):en)||cur.name;cur.addr=hiOn()?TL(ea):ea;cur.phone=$('eP').value.replace(/\D/g,'');save();render();openSend(cur);};
 function sendNext(after){
  const G=S.guests;let start=after?G.indexOf(after)+1:0;
  let g=G.slice(start).find(x=>!x.sent)||G.find(x=>!x.sent);
@@ -733,13 +1219,19 @@ $('allPdfBtn').onclick=async()=>{
 };
 
 /* ---------- inputs ---------- */
-$('addBtn').onclick=()=>{const n=parseLines($('bulkIn').value);if(!n.length)return toast('कोई नाम नहीं मिला');S.guests.push(...n);save();render();$('bulkIn').value='';toast(n.length+' मेहमान जोड़े गए ✔');};
+$('addBtn').onclick=()=>{const n=parseLines($('bulkIn').value);if(!n.length)return toast('कोई नाम नहीं मिला');S.guests.push(...n);save();render();$('bulkIn').value='';prevHi();toast(n.length+' मेहमान जोड़े गए ✔');};
 $('csv').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const n=parseLines(String(r.result));S.guests.push(...n);save();render();toast(n.length+' मेहमान जोड़े गए ✔');};r.readAsText(f,'utf-8');e.target.value='';};
 $('clearBtn').onclick=()=>{if(S.guests.length&&confirm('पूरी सूची हटाएँ?')){S.guests=[];save();render();}};
 $('msg').value=S.msg;$('msg').oninput=e=>{S.msg=e.target.value;save();};
 $('fmt').value=S.fmt;$('fmt').onchange=e=>{S.fmt=e.target.value;save();};
 $('cc').value=S.cc;$('cc').oninput=e=>{S.cc=e.target.value;save();};
 $('lnk').checked=S.lnk!==false;$('lnk').onchange=e=>{S.lnk=e.target.checked;save();};
+$('hi').checked=hiOn();$('hi').onchange=e=>{S.hi=e.target.checked;save();prevHi();};
+function prevHi(){const p=$('hiPrev');const t=$('bulkIn').value;if(!hiOn()||!TL.has(t)){p.style.display='none';return;}
+ const n=parseLines(t).slice(0,4);p.style.display=n.length?'block':'none';
+ p.innerHTML='हिंदी में ऐसे दिखेगा: '+n.map(g=>'<b style="color:#7d0f1e">'+esc(g.name)+'</b>'+(g.addr?' ('+esc(g.addr)+')':'')).join(', ')+(parseLines(t).length>4?' …':'');}
+$('bulkIn').addEventListener('input',prevHi);
+$('toHiBtn').onclick=()=>{let c=0;S.guests.forEach(g=>{if(TL.has(g.name)||TL.has(g.addr)){g.name=cleanName(TL(g.name));g.addr=TL(g.addr);c++;}});cache.clear();save();render();toast(c?c+' नाम हिंदी में बदले ✔':'सभी नाम पहले से हिंदी में हैं');};
 $('ji').checked=S.ji;$('ji').onchange=e=>{S.ji=e.target.checked;cache.clear();save();render();};
 render();
 
