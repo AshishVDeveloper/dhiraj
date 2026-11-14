@@ -111,7 +111,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
    <div><label>देश कोड (मोबाइल से पहले)</label><input type="text" id="cc" value="91" inputmode="numeric"></div>
   </div>
   <label class="chk"><input type="checkbox" id="ji" checked> नाम के बाद “जी” लगाएँ</label>
-  <label class="chk"><input type="checkbox" id="lnk" checked> संदेश में मेहमान के कार्ड का लिंक (PDF डाउनलोड) जोड़ें</label>
+  <label class="chk"><input type="checkbox" id="lnk"> संदेश में कार्ड का लिंक भी जोड़ें (वैकल्पिक — PDF फ़ाइल तो जाएगी ही)</label>
  </section>
 
  <section class="card">
@@ -135,8 +135,8 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
   <div class="who" id="mWho"></div>
   <img id="mImg" alt="कार्ड">
   <div class="acts">
-   <button class="btn b-w" id="mShare">📤 PDF फ़ाइल भेजें</button>
-   <a class="btn b-w" id="mWa" target="_blank" rel="noopener">💬 WhatsApp (लिंक)</a>
+   <button class="btn b-w" id="mShare" style="grid-column:1/-1;font-size:16px;padding:13px">📤 WhatsApp पर PDF भेजें</button>
+   <a class="btn b-l" id="mWa" target="_blank" rel="noopener">💬 चैट खोलें</a>
    <button class="btn b-g" id="mDl">⬇ डाउनलोड</button>
    <button class="btn b-m" id="mDone">✔ भेज दिया</button>
    <button class="btn b-l" id="mEdit">✏️ बदलें</button>
@@ -1042,7 +1042,7 @@ const DEF_MSG=`🙏 सादर निमंत्रण 🙏
 🌼 तिलकोत्सव – 05 दिसम्बर 2026, शनिवार
 🌼 बारात प्रस्थान – 11 दिसम्बर 2026, शुक्रवार (सायं 4 बजे)
 
-📄 आपका निमंत्रण पत्र (PDF):
+निमंत्रण पत्र (PDF) संलग्न है।
 {लिंक}
 
 आपकी उपस्थिति हमारा सौभाग्य होगी।
@@ -1054,8 +1054,8 @@ const DEF_MSG=`🙏 सादर निमंत्रण 🙏
 
 const $=id=>document.getElementById(id);
 const KEY='dhiraj_vivah_bulk_v1';
-let S={guests:[],msg:DEF_MSG,fmt:'pdf',cc:'91',ji:true,lnk:true,hi:true};
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)S=Object.assign(S,s);}catch(e){}
+let S={guests:[],msg:DEF_MSG,fmt:'pdf',cc:'91',ji:true,lnk:false,hi:true};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)S=Object.assign(S,s);if(!S.v2){S.lnk=false;S.v2=true;}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 const cache=new Map();
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1093,7 +1093,7 @@ function cardLink(g){let base=SITE;if(/^https?:/.test(location.protocol))base=lo
  return base+'?g='+b;}
 function msgFor(g){let m=(S.msg||'').replace(/\{(नाम|name)\}/gi,'श्री '+fullName(g));
  if(S.lnk){const l=cardLink(g);if(/\{(लिंक|link)\}/i.test(m))m=m.replace(/\{(लिंक|link)\}/gi,l);else m+='\n\n📄 आपका निमंत्रण पत्र (PDF):\n'+l;}
- else m=m.replace(/.*\{(लिंक|link)\}.*\n?/gi,'').replace(/📄 आपका निमंत्रण पत्र \(PDF\):\n/,'');
+ else m=m.replace(/📄 आपका निमंत्रण पत्र \(PDF\):\n/,'निमंत्रण पत्र (PDF) संलग्न है।\n').replace(/^.*\{(लिंक|link)\}.*\n?/gim,'').replace(/\n{3,}/g,'\n\n');
  return m;}
 
 /* ---------- rendering ---------- */
@@ -1194,15 +1194,18 @@ async function openSend(g){
  if(n){wa.href='https://wa.me/'+n+'?text='+encodeURIComponent(msgFor(g));wa.classList.remove('dis');}else{wa.removeAttribute('href');wa.classList.add('dis');}
  const canShare=!!(navigator.canShare&&navigator.share);
  $('mShare').style.display=canShare?'':'none';
+ $('mShare').textContent=S.fmt==='pdf'?'📤 WhatsApp पर PDF भेजें':'📤 WhatsApp पर कार्ड (फ़ोटो) भेजें';
+ $('mWa').textContent=canShare?'💬 सिर्फ़ चैट खोलें':'💬 WhatsApp चैट + PDF';
+ if(!canShare){$('mWa').className='btn b-w';$('mWa').style.gridColumn='1/-1';}
  $('mTip').innerHTML=canShare
-  ?'<b>💬 WhatsApp (लिंक)</b> → मेहमान की चैट खुलेगी, संदेश + उसके कार्ड का लिंक लिखा मिलेगा → बस <b>Send</b> दबाएँ। मेहमान लिंक खोलकर PDF डाउनलोड कर लेगा।<br><b>📤 PDF फ़ाइल भेजें</b> → WhatsApp चुनें → मेहमान चुनें → PDF फ़ाइल सीधे जाएगी (संदेश कॉपी हो जाता है, कैप्शन में पेस्ट करें)।'
-  :'<b>💬 WhatsApp (लिंक)</b> → WhatsApp Web / Desktop में मेहमान की चैट खुलेगी, संदेश + कार्ड का लिंक लिखा मिलेगा → <b>Send</b> दबाएँ।<br>PDF फ़ाइल भी भेजनी हो तो वह अपने-आप डाउनलोड हो जाती है — 📎 से जोड़ें या खींचकर चैट में छोड़ें।';
+  ?'<b>📤 WhatsApp पर PDF भेजें</b> दबाएँ → <b>WhatsApp</b> चुनें → <b>'+esc('श्री '+fullName(g))+'</b>'+(g.phone?' ('+esc(g.phone)+')':'')+' को खोजकर चुनें → भेजें। PDF फ़ाइल और संदेश दोनों साथ जाएँगे। (संदेश कॉपी भी हो जाता है — न दिखे तो कैप्शन में पेस्ट करें)<br>भेजने के बाद यहाँ <b>✔ भेज दिया</b> दबाएँ, अगला मेहमान खुल जाएगा।'
+  :'यह ब्राउज़र सीधे फ़ाइल शेयर नहीं करता (कंप्यूटर)। <b>💬 WhatsApp चैट + PDF</b> दबाएँ → PDF डाउनलोड होगी और WhatsApp Web में मेहमान की चैट संदेश के साथ खुलेगी → डाउनलोड हुई PDF को चैट में <b>खींचकर छोड़ें</b> (या 📎 से जोड़ें) → भेजें।<br>मोबाइल पर यह पेज खोलें तो PDF सीधे WhatsApp पर जाती है।';
  $('sendM').classList.remove('hidden');
  try{const r=await build(g);if(cur===g)$('mImg').src=r.cover;}catch(err){toast('कार्ड नहीं बन सका: '+err.message);}
 }
 $('mClose').onclick=()=>{$('sendM').classList.add('hidden');cur=null;};
 $('mDl').onclick=async()=>{if(cur){await download(cur);toast('डाउनलोड शुरू ✔');}};
-$('mWa').addEventListener('click',()=>{if(!cur||!waNum(cur.phone))return;const g=cur;if(!isMobile||!S.lnk)download(g);});
+$('mWa').addEventListener('click',()=>{if(!cur||!waNum(cur.phone))return;const g=cur;if(!(navigator.canShare&&navigator.share))download(g);});
 $('mShare').onclick=async()=>{
  if(!cur)return;const g=cur;
  try{
