@@ -111,7 +111,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
    <div><label>देश कोड (मोबाइल से पहले)</label><input type="text" id="cc" value="91" inputmode="numeric"></div>
   </div>
   <label class="chk"><input type="checkbox" id="ji" checked> नाम के बाद “जी” लगाएँ</label>
-  <label class="chk"><input type="checkbox" id="lnk"> संदेश में कार्ड का लिंक भी जोड़ें (वैकल्पिक — PDF फ़ाइल तो जाएगी ही)</label>
+  <label class="chk"><input type="checkbox" id="lnk" checked> संदेश में मेहमान के कार्ड का लिंक जोड़ें (लिंक खोलकर PDF डाउनलोड)</label>
  </section>
 
  <section class="card">
@@ -1043,7 +1043,7 @@ const DEF_MSG=`🙏 सादर निमंत्रण 🙏
 🌼 तिलकोत्सव – 05 दिसम्बर 2026, शनिवार
 🌼 बारात प्रस्थान – 11 दिसम्बर 2026, शुक्रवार (सायं 4 बजे)
 
-निमंत्रण पत्र (PDF) संलग्न है।
+📄 आपका निमंत्रण पत्र (PDF):
 {लिंक}
 
 आपकी उपस्थिति हमारा सौभाग्य होगी।
@@ -1055,8 +1055,8 @@ const DEF_MSG=`🙏 सादर निमंत्रण 🙏
 
 const $=id=>document.getElementById(id);
 const KEY='dhiraj_vivah_bulk_v1';
-let S={guests:[],msg:DEF_MSG,fmt:'pdf',cc:'91',ji:true,lnk:false,hi:true};
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)S=Object.assign(S,s);if(!S.v2){S.lnk=false;S.v2=true;}}catch(e){}
+let S={guests:[],msg:DEF_MSG,fmt:'pdf',cc:'91',ji:true,lnk:true,hi:true};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)S=Object.assign(S,s);if(!S.v3){S.lnk=true;S.v2=S.v3=true;}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 const cache=new Map();
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1093,7 +1093,7 @@ function cardLink(g){let base=SITE;if(/^https?:/.test(location.protocol))base=lo
  const b=btoa(String.fromCharCode(...new TextEncoder().encode(raw))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  return base+'?g='+b;}
 function msgFor(g){let m=(S.msg||'').replace(/\{(नाम|name)\}/gi,'श्री '+fullName(g));
- if(S.lnk){const l=cardLink(g);if(/\{(लिंक|link)\}/i.test(m))m=m.replace(/\{(लिंक|link)\}/gi,l);else m+='\n\n📄 आपका निमंत्रण पत्र (PDF):\n'+l;}
+ if(S.lnk){m=m.replace(/निमंत्रण पत्र \(PDF\) संलग्न है।\n(\{(लिंक|link)\})/,'📄 आपका निमंत्रण पत्र (PDF):\n$1');const l=cardLink(g);if(/\{(लिंक|link)\}/i.test(m))m=m.replace(/\{(लिंक|link)\}/gi,l);else m+='\n\n📄 आपका निमंत्रण पत्र (PDF):\n'+l;}
  else m=m.replace(/📄 आपका निमंत्रण पत्र \(PDF\):\n/,'निमंत्रण पत्र (PDF) संलग्न है।\n').replace(/^.*\{(लिंक|link)\}.*\n?/gim,'').replace(/\n{3,}/g,'\n\n');
  return m;}
 
@@ -1208,7 +1208,7 @@ async function openSend(g){
  $('mWa').textContent=canShare?'💬 सिर्फ़ चैट खोलें':'💬 WhatsApp चैट + PDF';
  $('mPaste').classList.toggle('dis',!n);
  $('mTip').innerHTML='<b>💬 बिना खोजे भेजें:</b> दबाते ही कार्ड की फ़ोटो कॉपी होगी और <b>'+esc('श्री '+fullName(g))+'</b> की WhatsApp चैट संदेश के साथ सीधे खुलेगी →'
-  +(isMobile?' मैसेज बॉक्स में <b>उँगली दबाकर रखें → Paste</b> (या कीबोर्ड के ऊपर दिख रही फ़ोटो पर टैप करें) → कार्ड फ़ोटो लग जाएगी → <b>भेजें</b>। फिर संदेश भी भेजें।':' चैट में <b>Ctrl + V</b> दबाएँ → कार्ड फ़ोटो लग जाएगी → <b>भेजें</b>।')
+  +(isMobile?' मैसेज बॉक्स में <b>उँगली दबाकर रखें → Paste</b> (या कीबोर्ड के ऊपर दिख रही फ़ोटो पर टैप करें) → कार्ड फ़ोटो लग जाएगी → <b>भेजें</b>। फिर संदेश भेजें'+(S.lnk?' — उसमें PDF डाउनलोड का लिंक है।':'।'):' चैट में <b>Ctrl + V</b> दबाएँ → कार्ड फ़ोटो लग जाएगी → <b>भेजें</b>।')
   +(canShare?'<br><b>📤 PDF फ़ाइल चाहिए</b> तो दूसरा बटन — इसमें WhatsApp में मेहमान को खोजकर चुनना पड़ता है (WhatsApp बिना API के फ़ाइल सीधे किसी चैट में नहीं लगाने देता)।':'<br>PDF भेजनी हो तो <b>💬 WhatsApp चैट + PDF</b> — PDF डाउनलोड होगी, उसे चैट में खींचकर छोड़ें।')
   +'<br>भेजने के बाद <b>✔ भेज दिया</b> दबाएँ, अगला मेहमान खुल जाएगा।';
  $('sendM').classList.remove('hidden');
