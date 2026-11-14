@@ -81,12 +81,15 @@ textarea{min-height:110px;resize:vertical;line-height:1.5}
   <h2>1. मेहमानों की सूची</h2>
   <p class="help">हर लाइन में एक मेहमान: <code>नाम, गाँव/पता, मोबाइल</code><br>
   उदाहरण: <code>रमेश कुमार विश्वकर्मा, ग्राम चेतरा कुण्डा, 9876543210</code><br>
-  Excel से कॉपी करके भी सीधे पेस्ट कर सकते हैं (नाम | पता | मोबाइल कॉलम)। पता और मोबाइल वैकल्पिक हैं।</p>
+  Excel से कॉपी करके भी सीधे पेस्ट कर सकते हैं (नाम | पता | मोबाइल कॉलम)। पता और मोबाइल वैकल्पिक हैं।<br>
+  <b>📇 फ़ोन कॉन्टैक्ट से चुनें</b> — फ़ोन की कॉन्टैक्ट लिस्ट खुलेगी, कई लोग एक साथ चुनें (Android Chrome)। iPhone / कंप्यूटर पर Contacts से <b>.vcf</b> फ़ाइल Export करके <b>VCF फ़ाइल</b> बटन से जोड़ें। पता बाद में ✏️ से जोड़ सकते हैं।</p>
   <textarea id="bulkIn" placeholder="Ramesh Kumar Vishwakarma, Gram Chetra Kunda, 9876543210&#10;सुरेश प्रसाद, प्रतापगढ़, 9123456789"></textarea>
   <label class="chk"><input type="checkbox" id="hi" checked> English में लिखा नाम/पता अपने-आप <b>हिंदी</b> में बदलें</label>
   <div id="hiPrev" class="help" style="margin:6px 0 0;display:none;background:#fbf0d6;border-radius:8px;padding:6px 10px"></div>
   <div class="row">
    <button class="btn b-m" id="addBtn">➕ सूची में जोड़ें</button>
+   <button class="btn b-w" id="pickBtn">📇 फ़ोन कॉन्टैक्ट से चुनें</button>
+   <label class="btn b-l" style="cursor:pointer">📇 VCF फ़ाइल<input type="file" id="vcf" accept=".vcf,text/vcard,text/x-vcard" hidden></label>
    <label class="btn b-l" style="cursor:pointer">📄 CSV फ़ाइल<input type="file" id="csv" accept=".csv,.txt,text/csv,text/plain" hidden></label>
    <button class="btn b-x" id="clearBtn">🗑 सूची साफ़ करें</button>
   </div>
@@ -1221,6 +1224,31 @@ $('allPdfBtn').onclick=async()=>{
 /* ---------- inputs ---------- */
 $('addBtn').onclick=()=>{const n=parseLines($('bulkIn').value);if(!n.length)return toast('कोई नाम नहीं मिला');S.guests.push(...n);save();render();$('bulkIn').value='';prevHi();toast(n.length+' मेहमान जोड़े गए ✔');};
 $('csv').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const n=parseLines(String(r.result));S.guests.push(...n);save();render();toast(n.length+' मेहमान जोड़े गए ✔');};r.readAsText(f,'utf-8');e.target.value='';};
+/* ---------- contacts ---------- */
+function addContacts(list){
+ const have=new Set(S.guests.map(g=>(g.phone||'').slice(-10)).filter(Boolean));let added=0,dup=0;
+ list.forEach(c=>{let nm=(c.name||'').trim();let ph=(c.phone||'').replace(/\D/g,'');if(!nm&&!ph)return;if(!nm)nm=ph;
+  if(ph&&have.has(ph.slice(-10))){dup++;return;}if(ph)have.add(ph.slice(-10));
+  S.guests.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:cleanName(hiOn()?TL(nm):nm),addr:'',phone:ph,sent:false});added++;});
+ save();render();toast(added+' कॉन्टैक्ट जोड़े गए ✔'+(dup?' ('+dup+' पहले से थे)':''));}
+$('pickBtn').onclick=async()=>{
+ if(!('contacts' in navigator&&navigator.contacts.select)){toast('इस फ़ोन/ब्राउज़र में सीधा कॉन्टैक्ट चुनना नहीं है — Contacts से .vcf Export करके “VCF फ़ाइल” से जोड़ें');return;}
+ try{const r=await navigator.contacts.select(['name','tel'],{multiple:true});
+  addContacts(r.map(c=>({name:(c.name||[])[0]||'',phone:(c.tel||[])[0]||''})));}
+ catch(e){if(e.name!=='AbortError'&&e.name!=='InvalidStateError')toast('कॉन्टैक्ट नहीं खुल सके: '+e.message);}
+};
+function qp(s){return decodeURIComponent(s.replace(/=\r?\n/g,'').replace(/=([0-9A-F]{2})/gi,'%$1'));}
+function parseVcf(txt){
+ txt=txt.replace(/\r?\n[ \t]/g,'');const out=[];
+ txt.split(/BEGIN:VCARD/i).slice(1).forEach(card=>{let fn='',n='',tel='';
+  card.split(/\r?\n/).forEach(line=>{const i=line.indexOf(':');if(i<0)return;const k=line.slice(0,i).toUpperCase();let v=line.slice(i+1).trim();
+   if(/QUOTED-PRINTABLE/.test(k)){try{v=qp(v);}catch(e){}}
+   if(/^(ITEM\d+\.)?FN(;|$)/.test(k)&&!fn)fn=v;
+   else if(/^(ITEM\d+\.)?N(;|$)/.test(k)&&!n)n=v.split(';').filter(Boolean).reverse().join(' ');
+   else if(/^(ITEM\d+\.)?TEL/.test(k)&&!tel)tel=v;});
+  out.push({name:(fn||n).replace(/\\,/g,',').replace(/\\/g,''),phone:tel});});
+ return out;}
+$('vcf').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const l=parseVcf(String(r.result));if(!l.length)return toast('फ़ाइल में कोई कॉन्टैक्ट नहीं मिला');addContacts(l);};r.readAsText(f,'utf-8');e.target.value='';};
 $('clearBtn').onclick=()=>{if(S.guests.length&&confirm('पूरी सूची हटाएँ?')){S.guests=[];save();render();}};
 $('msg').value=S.msg;$('msg').oninput=e=>{S.msg=e.target.value;save();};
 $('fmt').value=S.fmt;$('fmt').onchange=e=>{S.fmt=e.target.value;save();};
